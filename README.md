@@ -3,8 +3,10 @@
 <!-- This is FedNLP, an application ecosystem for federated natural language processing based on FedML framework (https://github.com/FedML-AI/FedML). -->
 
 FedNLP is a research-oriented benchmarking framework for advancing *federated learning* (FL) in *natural language processing* (NLP).
-It uses FedML repository as the git submodule. In other words, FedNLP only focuses on adavanced models and dataset, while FedML supports various
+In the original ![FedNLP](https://github.com/FedML-AI/FedNLP), FedML repository is used as the git submodule. In other words, the orignal FedNLP only focuses on adavanced models and dataset, while FedML supports various
 federated optimizers (e.g., FedAvg) and platforms (Distributed Computing, IoT/Mobile, Standalone).
+
+This library aims to substitute FedML with ![Flower](https://github.com/adap/flower), and build a wrapper API to enable migration to future core federated learning frameworks, for example, PySyft.
 
 The figure below is the overall structure of FedNLP.
 ![avatar](./FedNLP.png)
@@ -16,12 +18,12 @@ After `git clone`-ing this repository, please run the following command to insta
 ```bash
 conda create -n fednlp python=3.7
 conda activate fednlp
-# conda install pytorch==1.6.0 torchvision==0.7.0 cudatoolkit=10.1 -c pytorch -n fednlp
-pip install torch==1.6.0+cu101 torchvision==0.7.0+cu101 -f https://download.pytorch.org/whl/torch_stable.html
+# pip install  torchvision==0.7.0+cu101
 pip install -r requirements.txt 
 pip uninstall transformers
 pip install -e transformers/
-cd FedML; git submodule init; git submodule update; cd ../;
+cd flower; git submodule init; git submodule update
+pip install .; cd ..
 
 # For Evaluation NLG
 # pip install git+https://github.com/google-research/bleurt.git
@@ -35,7 +37,7 @@ cd FedML; git submodule init; git submodule update; cd ../;
 In near future, once FedML is stable, we will release it as a python package. 
 At that time, we can install FedML package with pip or conda, without the need to use Git submodule. -->
 
-- `FedML`: a soft repository link generated using `git submodule add https://github.com/FedML-AI/FedML`.
+- `flower`: a soft repository link generated using `git submodule add https://github.com/adap/Flower`.
 
 
 - `data`: provide data downloading scripts and raw data loader to process original data and generate h5py files. Besides, `data/advanced_partition` offers some practical partition functions to split data for each client.
