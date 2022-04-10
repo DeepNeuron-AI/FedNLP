@@ -1,4 +1,3 @@
-[submodule "FedML"]
-	path = FedML
-	url = https://github.com/FedML-AI/FedML.git
-	ignore = all
+[submodule "flower"]
+	path = flower
+	url = https://github.com/adap/flower.git
