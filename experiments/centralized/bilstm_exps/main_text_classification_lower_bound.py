@@ -10,11 +10,11 @@ from torch.optim import *
 from spacy.lang.en import STOP_WORDS
 from statistics import *
 
-import data_preprocessing.AGNews.data_loader
-import data_preprocessing.SST_2.data_loader
-import data_preprocessing.SemEval2010Task8.data_loader
-import data_preprocessing.Sentiment140.data_loader
-import data_preprocessing.news_20.data_loader
+# import data_preprocessing.AGNews.data_loader
+# import data_preprocessing.SST_2.data_loader
+# import data_preprocessing.SemEval2010Task8.data_loader
+# import data_preprocessing.Sentiment140kkkdata_loader
+# import data_preprocessing.news_20.data_loader
 from data_preprocessing.base.utils import *
 from model.bilstm import BiLSTM_TextClassification
 
