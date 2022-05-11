@@ -112,6 +112,7 @@ def padding_data(x, max_sequence_length):
             new_single_x = new_single_x[:max_sequence_length]
         padding_x.append(new_single_x)
     return padding_x, seq_lens
+    
 
 def padding_char_data(x, max_sequence_length, max_word_length):
     padding_x = []
@@ -151,6 +152,7 @@ def token_to_idx(x, vocab):
                 new_single_x.append(vocab[UNK_TOKEN])
         idx_x.append(new_single_x)
     return idx_x
+
 
 def char_to_idx(x, vocab):
     idx_x = []
