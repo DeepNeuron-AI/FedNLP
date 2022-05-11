@@ -16,14 +16,12 @@ The figure below is the overall structure of FedNLP.
 After `git clone`-ing this repository, please run the following command to install our dependencies.
 
 ```bash
-conda create -n fednlp python=3.7
-conda activate fednlp
-# pip install  torchvision==0.7.0+cu101
-pip install -r requirements.txt 
-pip uninstall transformers
-pip install -e transformers/
+conda env create -f environment.yml
 cd flower; git submodule init; git submodule update
-pip install .; cd ..
+cd breaching; git submodule init; git submodule update
+```
+
+`flwr` and `breaching` libraries are installed from pip. They are cloned into the directory structure for reference purpose and extended if necessary. Note, however, that building the libraries from source is required in such a case and may lead to dependencies issue.
 
 # For Evaluation NLG
 # pip install git+https://github.com/google-research/bleurt.git
