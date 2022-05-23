@@ -72,8 +72,8 @@ experiments/centralized/transformer_exps/tmp/fedml
 dist/*
 dist/
 downloaded/*
-downloaded
-build
+downloaded/
+build/
 build/*
 *.egg-info/
 *.egg-info/*
