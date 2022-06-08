@@ -1,4 +1,5 @@
 import warnings
+import breaching
 from collections import OrderedDict
 
 import flwr as fl
@@ -18,50 +19,33 @@ from tqdm import tqdm
 warnings.filterwarnings("ignore", category=UserWarning)
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-
-class Net(nn.Module):
-    """Model (simple CNN adapted from 'PyTorch: A 60 Minute Blitz')"""
-
-    def __init__(self) -> None:
-        super(Net, self).__init__()
-        self.conv1 = nn.Conv2d(3, 6, 5)
-        self.pool = nn.MaxPool2d(2, 2)
-        self.conv2 = nn.Conv2d(6, 16, 5)
-        self.fc1 = nn.Linear(16 * 5 * 5, 120)
-        self.fc2 = nn.Linear(120, 84)
-        self.fc3 = nn.Linear(84, 10)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = self.pool(F.relu(self.conv1(x)))
-        x = self.pool(F.relu(self.conv2(x)))
-        x = x.view(-1, 16 * 5 * 5)
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        return self.fc3(x)
-
-
 def train(net, trainloader, epochs):
     """Train the model on the training set."""
     criterion = torch.nn.CrossEntropyLoss()
-    optimizer = torch.optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
+    i = 0
+    threshold = 1
     for _ in range(epochs):
-        for images, labels in tqdm(trainloader):
-            optimizer.zero_grad()
+        for images, labels in tqdm(trainloader, total=threshold):
+            i += 1
             criterion(net(images.to(DEVICE)), labels.to(DEVICE)).backward()
-            optimizer.step()
-
+            if i == threshold:
+                break
 
 def test(net, testloader):
     """Validate the model on the test set."""
     criterion = torch.nn.CrossEntropyLoss()
     correct, total, loss = 0, 0, 0.0
+    i = 0
     with torch.no_grad():
         for images, labels in tqdm(testloader):
+            i += 1
             outputs = net(images.to(DEVICE))
             labels = labels.to(DEVICE)
             loss += criterion(outputs, labels).item()
             total += labels.size(0)
             correct += (torch.max(outputs.data, 1)[1] == labels).sum().item()
+            if i == 2:
+                break
     return loss / len(testloader.dataset), correct / total
 
 
@@ -70,7 +54,7 @@ def load_data():
     trf = Compose([ToTensor(), Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
     trainset = CIFAR10("./data", train=True, download=True, transform=trf)
     testset = CIFAR10("./data", train=False, download=True, transform=trf)
-    return DataLoader(trainset, batch_size=32, shuffle=True), DataLoader(testset)
+    return DataLoader(trainset, batch_size=4, shuffle=True), DataLoader(testset)
 
 
 # #############################################################################
@@ -78,12 +62,32 @@ def load_data():
 # #############################################################################
 
 # Load model and data (simple CNN, CIFAR-10)
-net = Net().to(DEVICE)
+# options for improvement: use config to populate the same model on server, attack node, and clients instead of running breaching?
+# instead of running the same piece of code
+cfg = breaching.get_config(overrides=["case=6_large_batch_cifar"])
+
+device = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
+setup = dict(device=device, dtype=getattr(torch, cfg.case.impl.dtype))
+torch.backends.cudnn.benchmark = cfg.case.impl.benchmark
+
+cfg.case.data.partition="balanced" # 100 unique CIFAR-100 images
+cfg.case.user.user_idx = 0
+cfg.case.user.provide_labels = False
+cfg.attack.label_strategy = "yin" # also works here, as labels are unique
+cfg.attack.regularization.total_variation.scale = 5e-4 # Total variation regularization needs to be smaller on CIFAR-10:
+
+# options for improvement: do not generate server and make clear where the shared data is, etc.
+# ideally, we want to only construct the model and loss_fn etc, but the attack library doesn't have
+# that modularity built-in
+_, _, net, loss_fn = breaching.cases.construct_case(cfg.case, setup)
+net : nn.Module = net.to(DEVICE)
+
 trainloader, testloader = load_data()
 
 # Define Flower client
-class FlowerClient(fl.client.NumPyClient):
+class FlowerGradientClient(fl.client.NumPyClient):
     def get_parameters(self):
+        """Return initial parameters"""
         return [val.cpu().numpy() for _, val in net.state_dict().items()]
 
     def set_parameters(self, parameters):
@@ -94,13 +98,14 @@ class FlowerClient(fl.client.NumPyClient):
     def fit(self, parameters, config):
         self.set_parameters(parameters)
         train(net, trainloader, epochs=1)
-        return self.get_parameters(), len(trainloader.dataset), {}
+        return [v.grad.cpu().numpy() for v in net.parameters()], len(trainloader.dataset), {}
 
     def evaluate(self, parameters, config):
         self.set_parameters(parameters)
         loss, accuracy = test(net, testloader)
+        # option for improvement: does this return batch size or size of dataset
         return loss, len(testloader.dataset), {"accuracy": accuracy}
 
 
 # Start Flower client
-fl.client.start_numpy_client("[::]:8080", client=FlowerClient())
+fl.client.start_numpy_client("[::]:8080", client=FlowerGradientClient())

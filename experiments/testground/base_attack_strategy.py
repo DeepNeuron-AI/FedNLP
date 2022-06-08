@@ -1,4 +1,5 @@
 from breaching.attacks.base_attack import _BaseAttacker
+from omegaconf import DictConfig
 
 from flwr.server.strategy import Strategy
 from flwr.common import EvaluateIns, EvaluateRes, FitIns, FitRes, Parameters, Scalar
@@ -15,10 +16,11 @@ class BaseCuriousServerStrategy(Strategy, ABC):
     to a handler task
     """
 
-    def __init__(self, attack: _BaseAttacker, fed_strategy: Strategy, shared_data: dict):
+    def __init__(self, attack: _BaseAttacker, fed_strategy: Strategy, metadata: dict):
         self.attack = attack
         self.strategy = fed_strategy
-        self.shared_data = shared_data
+        self.server_params = None
+        self.metadata = DictConfig(metadata)
 
     def aggregate_fit(
         self,
@@ -31,8 +33,10 @@ class BaseCuriousServerStrategy(Strategy, ABC):
         """
         server_payload = self.get_server_payload(rnd, results, failures)
         shared_data = self.get_shared_data(rnd, results, failures)
-        self.signal_attack_node(self.attack, server_payload, shared_data)
-        return self.strategy.aggregate_fit(rnd, results, failures)
+        self.signal_attack_node(server_payload, shared_data)
+        parameters, metrics = self.strategy.aggregate_fit(rnd, results, failures)
+        self.server_params = parameters
+        return (parameters, metrics)
 
     @abstractmethod
     def get_server_payload(self, rnd: int, results: List[Tuple[ClientProxy, FitRes]], failures: List[BaseException]) -> dict:
